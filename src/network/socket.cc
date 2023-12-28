@@ -1,28 +1,29 @@
 #include <iostream>
 #include "socket.h"
 #include <fcntl.h>
+#include "logger.h"
 
 namespace radish::network {
 
-int SetNonBlocking(const Socket& socket) {
-    if(!socket.isBound()) return -1;
+bool SetNonBlocking(const Socket& socket) {
+    if(!socket.isBound()) return false;
     int fd {socket.getFd()};
     int flags {fcntl(fd, F_GETFL, 0)};
-    if (flags == -1) return -1;
-    int status {fcntl(fd, F_SETFL, flags | O_NONBLOCK)};
-    return status;
+    if (flags == -1) return false;
+    if(fcntl(fd, F_SETFL, flags | O_NONBLOCK) != 0) return false;
+    return true;
 }
 
-int Socket::CreateAndBind(int port) {
+Socket::Status Socket::CreateAndBind(int port) {
     int status {0};
     if(isBound()) return status;
     if((status = fd_ = socket(domain_, type_, protocol_)) < 0) {
-        std::cout << "create socket error: " << gai_strerror(errno) << '\n';
+        LOG(ERROR) << "create socket error: " << gai_strerror(errno);
         return status;
     }
     int opt {1};
     if((status = setsockopt(fd_, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt))) < 0) {
-        std::cout << "set socket option error: " << gai_strerror(errno) << '\n';
+        LOG(ERROR) << "set socket option error: " << gai_strerror(errno);
         return status;
     }
 
@@ -32,15 +33,15 @@ int Socket::CreateAndBind(int port) {
     addr_in.sin_port = htons(port);
     
     if((status = bind(fd_, reinterpret_cast<sockaddr*>(&addr_in), sizeof(addr_in))) < 0) {
-        std::cout << "bind error: " << gai_strerror(errno) << '\n';
+        LOG(ERROR) << "bind error: " << gai_strerror(errno);
     }
     return status;
 }
 
-int Socket::Listen() {
+Socket::Status Socket::Listen() {
     int status = listen(fd_, backlog_);
     if(status < 0) {
-        std::cout << "listen error: " << gai_strerror(errno) << '\n';
+        LOG(ERROR) << "listen error: " << gai_strerror(errno);
     }
     return status;
 }
@@ -57,20 +58,24 @@ std::unique_ptr<Socket> Socket::Accept() {
     return new_socket;
 }
 
-int Socket::Read(std::vector<char>& buff, int size, int offset) {
+Socket::Status Socket::Read(std::vector<char>& buff, int size, int offset) {
     int recv_count = {static_cast<int>(recv(fd_, &buff[offset], size, 0))};
     if(recv_count < 0) {
-        std::cout << "write error: " << gai_strerror(errno) << '\n';
+        LOG(ERROR) << "read error: " << gai_strerror(errno);
     }
     return recv_count;
 }
 
-int Socket::Write(const std::vector<char>& buff, int size) {
+Socket::Status Socket::Write(const std::vector<char>& buff, int size) {
     int sent_count {static_cast<int>(send(fd_, &buff[0], size, 0))};
     if(sent_count < 0) {
-        std::cout << "write error: " << gai_strerror(errno) << '\n';
+        LOG(ERROR) << "write error: " << gai_strerror(errno);
     }
     return sent_count;
+}
+
+Socket::Status Socket::Close() {
+    return close(fd_);
 }
 
 } // namespace radish::network

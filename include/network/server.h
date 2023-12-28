@@ -3,6 +3,7 @@
 
 namespace radish::network {
 
+// Single threaded event loop server.
 class Server {
 public:
     Server() = default;
@@ -17,8 +18,10 @@ public:
     Server& operator=(Server&& server) = delete;
 private:
     int port_ {9876};
+    int ttl_ {0};
+    int max_conn_ {5};
 };
 
 } // namespace radish
 
-#endif
+#endif // NETWORK_SERVER_H

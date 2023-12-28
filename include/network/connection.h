@@ -11,7 +11,6 @@ namespace radish::network {
 
 constexpr int kMaxBufferSize {4096};
 
-
 /*
  * kRequest -> kRequest: reading, there are still readable data.
  * kRequest -> kResponse: buffer contains a valid request.
@@ -26,6 +25,7 @@ enum class ConnState {
     kEnd,
 };
 
+// An abstraction over Socket that provides buffered IO and state management.
 class Connection {
     public:
         Connection(std::unique_ptr<Socket> socket): 
@@ -73,4 +73,4 @@ void HandleRequest(Connection& conn);
 void HandleResponse(Connection& conn);
 } // namespace radish
 
-#endif
+#endif // NETWORK_CONNECTION_H

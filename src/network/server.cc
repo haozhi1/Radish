@@ -5,6 +5,7 @@
 #include "connection.h"
 #include "socket.h"
 #include "server.h"
+#include "logger.h"
 
 namespace radish::network {
 
@@ -12,12 +13,12 @@ int Server::Start() {
     Socket server_socket {AF_INET, SOCK_STREAM, 0};
     server_socket.CreateAndBind(port_);
     server_socket.Listen();
-    int status {SetNonBlocking(server_socket)};
-    if(status != 0) {
-        std::cout << "server socket setup error";
-        return status;
+    if(!SetNonBlocking(server_socket)) {
+        LOG(ERROR) << "could not start server";
+        return -1;
     }
 
+    LOG(INFO) << "server listening at port: " << port_;
     // Event loop.
     std::unordered_map<int, std::unique_ptr<Connection>> conn_map {};
     std::vector<pollfd> fd_pool {};
@@ -42,9 +43,7 @@ int Server::Start() {
         // New connection
         if(fd_pool[0].revents) {
             auto new_sock = server_socket.Accept();
-            int status {SetNonBlocking(*new_sock)};
-
-            if(status == 0) {
+            if(SetNonBlocking(*new_sock)) {
                 int fd {new_sock->getFd()};
                 auto ptr = std::make_unique<Connection>(std::move(new_sock));
                 conn_map.insert({fd, std::move(ptr)});

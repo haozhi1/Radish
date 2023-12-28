@@ -1,5 +1,6 @@
 #include <iostream>
 #include "server.h"
+#include "logger.h"
 
 int main() {
     radish::network::Server server;

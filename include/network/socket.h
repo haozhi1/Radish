@@ -10,8 +10,9 @@
 
 namespace radish::network {
 
-// RAII wrapper for socket so I don't have to deal with C array and close(fd).
+// A RAII wrapper for socket so I don't have to deal with C arrays.
 class Socket {
+    using Status = int;
 public:
     Socket(int domain, int type, int protocol): 
         domain_{domain}, 
@@ -25,12 +26,12 @@ public:
     Socket(Socket&& socket) = default;
     Socket& operator=(Socket&& socket) = default;
 
-    int CreateAndBind(int port);
-    int Listen();
+    Status CreateAndBind(int port);
+    Status Listen();
     std::unique_ptr<Socket> Accept();
-    int Read(std::vector<char>& buff, int size, int offset);
-    int Write(const std::vector<char>& buff, int size);
-    int Close() { return close(fd_); };
+    Status Read(std::vector<char>& buff, int size, int offset);
+    Status Write(const std::vector<char>& buff, int size);
+    Status Close();
 
     bool isBound() const { return fd_ != -1;};
     int getFd() const { return fd_; };
@@ -42,8 +43,8 @@ private:
     int backlog_{20};
 };
 
-int SetNonBlocking(const Socket & socket);
+bool SetNonBlocking(const Socket & socket);
 
 } // namespace radish
 
-#endif
+#endif // NETWORK_SOCKET_H
