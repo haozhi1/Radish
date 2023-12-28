@@ -22,6 +22,8 @@ public:
     // No copy
     Socket(const Socket& socket) = delete;
     Socket& operator=(const Socket& socket) = delete;
+    Socket(Socket&& socket) = default;
+    Socket& operator=(Socket&& socket) = default;
 
     int CreateAndBind(int port);
     int Listen();

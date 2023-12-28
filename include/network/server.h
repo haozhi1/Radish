@@ -6,6 +6,7 @@ namespace radish::network {
 class Server {
 public:
     Server() = default;
+    ~Server() = default;
     int Start();
     void SetPort(int port);
 

@@ -11,7 +11,7 @@ namespace radish::network {
 
 constexpr int kMaxBufferSize {4096};
 
-enum ConnState {
+enum class ConnState {
     kRequest,
     kResponse,
     kEnd,
@@ -50,7 +50,7 @@ class Connection {
         void WriteBufferAppend(const std::string& msg);
     private:
         std::unique_ptr<Socket> socket_;
-        ConnState state_ {kRequest};
+        ConnState state_ {ConnState::kRequest};
         int rbuff_size_;
         std::vector<char> rbuff_;
         int wbuff_size_;
