@@ -1,12 +1,12 @@
 #ifndef NETWORK_SERVER_H
 #define NETWORK_SERVER_H
 
-namespace radish {
+namespace radish::network {
 
 class Server {
 public:
     Server() = default;
-    void Start();
+    int Start();
     void SetPort(int port);
 
     // No copy or move

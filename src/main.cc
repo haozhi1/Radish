@@ -2,7 +2,7 @@
 #include "server.h"
 
 int main() {
-    radish::Server server;
+    radish::network::Server server;
     server.SetPort(9876);
-    server.Start();
+    return server.Start();
 }
