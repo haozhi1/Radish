@@ -11,6 +11,15 @@ namespace radish::network {
 
 constexpr int kMaxBufferSize {4096};
 
+
+/*
+ * kRequest -> kRequest: reading, there are still readable data.
+ * kRequest -> kResponse: buffer contains a valid request.
+ * kRequest -> kEnd: error while reading requests.
+ * kResponse -> kResponse: clearing the write buffer.
+ * kResponse -> kRequest: write buffer is empty, go back to reading requests.
+ * kResponse -> kEnd: error while writing responses.
+ */
 enum class ConnState {
     kRequest,
     kResponse,

@@ -7,15 +7,17 @@ namespace radish::network {
 namespace {
     
 bool HandleOneRequest(Connection& conn) {
+    //TODO: check if there is a valid request
     if(conn.ReadBufferEmpty()) return false;
-
-    //TODO: parse request
     std::vector<char> req_msg = conn.GetReadBuffer();
     if(req_msg.size() > 1) {
-        conn.WriteBufferAppend({"Sample response\n"});
+        conn.WriteBufferAppend({"Dummy response\n"});
     }
     conn.EraseReadBuffer(req_msg.size());
+    
+    conn.SetState(ConnState::kResponse);
     HandleResponse(conn);
+
     return conn.ReadBufferEmpty();
 }
 
@@ -26,7 +28,7 @@ bool Connection::Read() {
     int maxb = kMaxBufferSize - rbuff_size_;
     int recv = socket_->Read(rbuff_, maxb, rbuff_size_);
     if(recv < 0) {
-        SetState(ConnState::kEnd);
+        if(errno != EAGAIN) SetState(ConnState::kEnd);
         return false;
     }
     if(recv == 0) return false;
@@ -51,7 +53,7 @@ bool Connection::Write() {
     int maxb = WriteBufferSize();
     int sent = socket_->Write(wbuff_, maxb);
     if(sent < 0) {
-        SetState(ConnState::kEnd);
+        if(errno != EAGAIN) SetState(ConnState::kEnd);
         return false;
     }
     if(sent == 0) return false;
