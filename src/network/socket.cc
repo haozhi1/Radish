@@ -14,7 +14,7 @@ bool SetNonBlocking(const Socket& socket) {
     return true;
 }
 
-Socket::Status Socket::CreateAndBind(int port) {
+int Socket::Init() {
     int status {0};
     if(isBound()) return status;
     if((status = fd_ = socket(domain_, type_, protocol_)) < 0) {
@@ -22,25 +22,37 @@ Socket::Status Socket::CreateAndBind(int port) {
         return status;
     }
     int opt {1};
-    if((status = setsockopt(fd_, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt))) < 0) {
+    if((status = setsockopt(fd_, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt))) != 0) {
         LOG(ERROR) << "set socket option error: " << gai_strerror(errno);
-        return status;
-    }
-
-    sockaddr_in addr_in {};
-    addr_in.sin_family = domain_;
-    addr_in.sin_addr.s_addr = INADDR_ANY;
-    addr_in.sin_port = htons(port);
-    
-    if((status = bind(fd_, reinterpret_cast<sockaddr*>(&addr_in), sizeof(addr_in))) < 0) {
-        LOG(ERROR) << "bind error: " << gai_strerror(errno);
     }
     return status;
 }
 
-Socket::Status Socket::Listen() {
+int Socket::InitAndBind(int port) {
+    int status {Init()};
+    if(status != 0) return status;
+
+    struct addrinfo* server_addr;
+    struct addrinfo hints;
+    hints.ai_family = domain_;
+    hints.ai_socktype = type_;
+    hints.ai_protocol = protocol_;
+    hints.ai_flags = AI_PASSIVE;
+    if ((status = getaddrinfo("localhost", std::to_string(port).c_str(), &hints, &server_addr)) != 0){
+        LOG(ERROR) << "connect error: " << gai_strerror(errno);
+        return status;
+    }
+    
+    if((status = bind(fd_, server_addr->ai_addr, server_addr->ai_addrlen)) != 0) {
+        LOG(ERROR) << "bind error: " << gai_strerror(errno);
+    }
+    freeaddrinfo(server_addr);
+    return status;
+}
+
+int Socket::Listen() {
     int status = listen(fd_, backlog_);
-    if(status < 0) {
+    if(status != 0) {
         LOG(ERROR) << "listen error: " << gai_strerror(errno);
     }
     return status;
@@ -58,7 +70,29 @@ std::unique_ptr<Socket> Socket::Accept() {
     return new_socket;
 }
 
-Socket::Status Socket::Read(std::vector<char>& buff, int size, int offset) {
+int Socket::InitAndConnect(std::string& ip, int port) {
+    int status {Init()};
+    if(status != 0) return status;
+
+    struct addrinfo* server_addr;
+    struct addrinfo hints;
+    hints.ai_family = domain_;
+    hints.ai_socktype = type_;
+    hints.ai_protocol = protocol_;
+    if ((status = getaddrinfo(ip.c_str(), std::to_string(port).c_str(), &hints, &server_addr)) != 0){
+        LOG(ERROR) << "connect error: " << gai_strerror(errno);
+        return status;
+    }
+    status = connect(fd_, server_addr->ai_addr, server_addr->ai_addrlen);
+    freeaddrinfo(server_addr);
+    if (status != 0) {
+        LOG(ERROR) << "connect error: " << gai_strerror(errno);
+        return status;
+    }
+    return status;
+}
+
+int Socket::Read(std::vector<char>& buff, int size, int offset) {
     int recv_count = {static_cast<int>(recv(fd_, &buff[offset], size, 0))};
     if(recv_count < 0) {
         LOG(ERROR) << "read error: " << gai_strerror(errno);
@@ -66,7 +100,7 @@ Socket::Status Socket::Read(std::vector<char>& buff, int size, int offset) {
     return recv_count;
 }
 
-Socket::Status Socket::Write(const std::vector<char>& buff, int size) {
+int Socket::Write(const std::vector<char>& buff, int size) {
     int sent_count {static_cast<int>(send(fd_, &buff[0], size, 0))};
     if(sent_count < 0) {
         LOG(ERROR) << "write error: " << gai_strerror(errno);
@@ -74,8 +108,12 @@ Socket::Status Socket::Write(const std::vector<char>& buff, int size) {
     return sent_count;
 }
 
-Socket::Status Socket::Close() {
-    return close(fd_);
+int Socket::Close() {
+    int status = close(fd_);
+    if(status != 0) {
+        LOG(ERROR) << "close error: " << gai_strerror(errno);
+    }
+    return status;
 }
 
 } // namespace radish::network

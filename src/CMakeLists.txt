@@ -5,3 +5,6 @@ target_include_directories(main PUBLIC ../include/util)
 # Server lib
 add_subdirectory(network)
 target_link_libraries(main PUBLIC network)
+
+# Client
+add_subdirectory(client)

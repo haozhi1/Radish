@@ -1,5 +1,6 @@
 #include <sys/socket.h>
 #include <iostream>
+#include <optional>
 #include <utility>
 #include "poll.h"
 #include "connection.h"
@@ -11,12 +12,9 @@ namespace radish::network {
 
 int Server::Start() {
     Socket server_socket {AF_INET, SOCK_STREAM, 0};
-    server_socket.CreateAndBind(port_);
-    server_socket.Listen();
-    if(!SetNonBlocking(server_socket)) {
-        LOG(ERROR) << "could not start server";
-        return -1;
-    }
+    if(server_socket.InitAndBind(port_) != 0) return EXIT_FAILURE;
+    if(server_socket.Listen() != 0) return EXIT_FAILURE;
+    if(!SetNonBlocking(server_socket)) return EXIT_FAILURE;
 
     LOG(INFO) << "server listening at port: " << port_;
     // Event loop.
@@ -28,11 +26,12 @@ int Server::Start() {
         fd_pool.push_back({server_socket.getFd(), POLLIN, 0});
 
         for(auto& [fd, conn] : conn_map) {
-            if(conn->getState() == ConnState::kEnd) {
+            if(conn->AtState(ConnState::kEnd)) {
+                LOG(INFO) << "connection ended: " << fd;
                 conn_map.erase(fd);
             } else {
-                int event = conn->getState() == ConnState::kRequest ? POLLIN : POLLOUT;
-                fd_pool.push_back({fd, POLLIN, 0});
+                short event = conn->AtState(ConnState::kRead) ? POLLIN : POLLOUT;
+                fd_pool.push_back({fd, event, 0});
             }
         }
 
@@ -45,6 +44,7 @@ int Server::Start() {
             auto new_sock = server_socket.Accept();
             if(SetNonBlocking(*new_sock)) {
                 int fd {new_sock->getFd()};
+                LOG(INFO) << "new connection: " << fd;
                 auto ptr = std::make_unique<Connection>(std::move(new_sock));
                 conn_map.insert({fd, std::move(ptr)});
             }
@@ -54,7 +54,7 @@ int Server::Start() {
         for(auto i {1}; i < fd_pool.size(); ++i) {
             auto io_pollfd = fd_pool[i];
             if(io_pollfd.revents) {
-                HandleConnection(*conn_map[io_pollfd.fd]);
+                HandleClientConnection(*conn_map[io_pollfd.fd]);
             }
         }
     }

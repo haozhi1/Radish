@@ -12,16 +12,16 @@ namespace radish::network {
 constexpr int kMaxBufferSize {4096};
 
 /*
- * kRequest -> kRequest: reading, there are still readable data.
- * kRequest -> kResponse: buffer contains a valid request.
- * kRequest -> kEnd: error while reading requests.
- * kResponse -> kResponse: clearing the write buffer.
- * kResponse -> kRequest: write buffer is empty, go back to reading requests.
- * kResponse -> kEnd: error while writing responses.
+ * kRead -> kRead: reading, there are still readable data.
+ * kRead -> kWrite: read buffer has enough data to be processed.
+ * kRead -> kEnd: error while reading data.
+ * kWrite -> kWrite: clearing the write buffer.
+ * kWrite -> kRead: write buffer is empty, go back to reading incoming data.
+ * kWrite -> kEnd: error while writing data.
  */
 enum class ConnState {
-    kRequest,
-    kResponse,
+    kRead,
+    kWrite,
     kEnd,
 };
 
@@ -34,7 +34,7 @@ class Connection {
             rbuff_(kMaxBufferSize),
             wbuff_size_{0},
             wbuff_(kMaxBufferSize) {}
-        ~Connection() { socket_->Close(); }
+        ~Connection() = default;
 
         // No copy
         Connection(const Connection& connection) = delete;
@@ -42,35 +42,35 @@ class Connection {
         Connection(Connection&& connection) = default;
         Connection& operator=(Connection&& connection) = default;
 
-        ConnState getState() { return state_; }
-        void SetState(ConnState state) { state_ = state; }
+        bool AtState(ConnState state) const { return state_ == state; }
+        void TransitionTo(ConnState state) { if(!AtState(ConnState::kEnd)) state_ = state; }
         
-        bool Read();
+        bool TryRead();
         bool ReadBufferEmpty() const { return rbuff_size_ == 0; }
         bool ReadBufferFull() const { return rbuff_size_ == kMaxBufferSize; }
         int ReadBufferSize() const { return rbuff_size_; }
         std::vector<char> GetReadBuffer() { return {rbuff_.begin(), rbuff_.begin() + rbuff_size_}; }
         void EraseReadBuffer(int firstn);
         
-        bool Write();
+        bool TryWrite();
         bool WriteBufferEmpty() const { return wbuff_size_ == 0; }
         bool WriteBufferFull() const { return wbuff_size_ == kMaxBufferSize; }
         int WriteBufferSize() const { return wbuff_size_; }
         void WriteBufferAppend(const std::string& msg);
     private:
         std::unique_ptr<Socket> socket_;
-        ConnState state_ {ConnState::kRequest};
+        ConnState state_ {ConnState::kRead};
         int rbuff_size_;
         std::vector<char> rbuff_;
         int wbuff_size_;
         std::vector<char> wbuff_;
 };
 
-void HandleConnection(Connection& conn);
+void HandleClientConnection(Connection& conn);
 
-void HandleRequest(Connection& conn);
+void HandleClientQuery(Connection& conn);
 
-void HandleResponse(Connection& conn);
+void HandleClientResponse(Connection& conn);
 } // namespace radish
 
 #endif // NETWORK_CONNECTION_H

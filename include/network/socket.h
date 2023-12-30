@@ -12,7 +12,6 @@ namespace radish::network {
 
 // A RAII wrapper for socket so I don't have to deal with C arrays.
 class Socket {
-    using Status = int;
 public:
     Socket(int domain, int type, int protocol): 
         domain_{domain}, 
@@ -26,16 +25,18 @@ public:
     Socket(Socket&& socket) = default;
     Socket& operator=(Socket&& socket) = default;
 
-    Status CreateAndBind(int port);
-    Status Listen();
+    int InitAndBind(int port);
+    int Listen();
     std::unique_ptr<Socket> Accept();
-    Status Read(std::vector<char>& buff, int size, int offset);
-    Status Write(const std::vector<char>& buff, int size);
-    Status Close();
+    int InitAndConnect(std::string& addr, int port);
+    int Read(std::vector<char>& buff, int size, int offset);
+    int Write(const std::vector<char>& buff, int size);
+    int Close();
 
     bool isBound() const { return fd_ != -1;};
     int getFd() const { return fd_; };
 private:
+    int Init();
     int fd_ {-1};
     int domain_ {AF_INET};
     int type_ {SOCK_STREAM};

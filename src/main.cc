@@ -4,6 +4,6 @@
 
 int main() {
     radish::network::Server server;
-    server.SetPort(9876);
+    server.SetPort(7802);
     return server.Start();
 }
