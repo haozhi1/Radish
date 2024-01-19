@@ -1,6 +1,6 @@
 add_executable(main main.cc)
-target_include_directories(main PUBLIC ../include/network)
-target_include_directories(main PUBLIC ../include/util)
+target_include_directories(main PUBLIC ./network)
+target_include_directories(main PUBLIC ./util)
 
 # Server lib
 add_subdirectory(network)
